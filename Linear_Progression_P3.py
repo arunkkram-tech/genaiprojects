@@ -23,7 +23,7 @@ class CarPricePredictor:
         
         # Store column information
         self.numerical_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
-        self.numerical_cols.remove('price')  # Remove target variable
+        self.numerical_cols.remove('Price')  # Remove target variable
         self.categorical_cols = df.select_dtypes(include=['object']).columns.tolist()
         
         # Display basic info
@@ -49,11 +49,11 @@ class CarPricePredictor:
         df_encoded = pd.get_dummies(df, columns=self.categorical_cols, drop_first=True)
         
         # Store feature columns
-        self.feature_columns = [col for col in df_encoded.columns if col != 'price']
+        self.feature_columns = [col for col in df_encoded.columns if col != 'Price']
         
         # Prepare features and target
         X = df_encoded[self.feature_columns]
-        y = df_encoded['price']
+        y = df_encoded['Price']
         
         # Scale features
         X_scaled = self.scaler.fit_transform(X)
@@ -79,12 +79,12 @@ class CarPricePredictor:
         
         # Price distribution
         fig, ax = plt.subplots(figsize=(10, 6))
-        sns.histplot(data=df, x='price', kde=True, ax=ax)
+        sns.histplot(data=df, x='Price', kde=True, ax=ax)
         plt.title('Price Distribution')
         st.pyplot(fig)
         
         # Correlation heatmap
-        numerical_data = df[self.numerical_cols + ['price']]
+        numerical_data = df[self.numerical_cols + ['Price']]
         fig, ax = plt.subplots(figsize=(10, 8))
         sns.heatmap(numerical_data.corr(), annot=True, cmap='coolwarm', ax=ax)
         plt.title('Correlation Heatmap')
