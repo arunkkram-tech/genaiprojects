@@ -1,59 +1,56 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
 from sklearn.tree import DecisionTreeRegressor
-import matplotlib.pyplot as plt
-import seaborn as sns
+from sklearn.metrics import r2_score, mean_squared_error
 
 class CarPricePredictor:
     def __init__(self):
         self.scaler = StandardScaler()
         self.lr_model = LinearRegression()
         self.dt_model = DecisionTreeRegressor(random_state=42)
+        self.categorical_cols = ['Location', 'Fuel_Type', 'Transmission', 'Owner_Type']
+        self.numerical_cols = ['Year', 'Kilometers_Driven', 'Mileage', 'Engine', 'Power', 'Seats']
+        self.target = 'Price'
         self.feature_columns = None
-        self.numerical_cols = None
-        self.categorical_cols = None
 
-    def train(self, data_file):
-        # Load data
-        df = pd.read_excel(data_file)
-        
-        # Store column information
-        self.numerical_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
-        self.numerical_cols.remove('Price')  # Remove target variable
-        self.categorical_cols = df.select_dtypes(include=['object']).columns.tolist()
-        
-        # Display basic info
-        st.write("Data Shape:", df.shape)
-        st.write("\nMissing Values:")
-        st.write(df.isnull().sum())
-        
-        # Display descriptive statistics
-        st.write("\nDescriptive Statistics:")
-        st.write(df.describe())
-        
-        # Visualizations
-        self.plot_eda(df)
+    def preprocess_data(self, df, is_training=True):
+        # Create a copy
+        processed_df = df.copy()
         
         # Handle missing values
         for col in self.numerical_cols:
-            df[col].fillna(df[col].mean(), inplace=True)
-        
+            processed_df[col] = pd.to_numeric(processed_df[col], errors='coerce')
+            processed_df[col].fillna(processed_df[col].mean(), inplace=True)
+            
         for col in self.categorical_cols:
-            df[col].fillna(df[col].mode()[0], inplace=True)
+            processed_df[col].fillna(processed_df[col].mode()[0], inplace=True)
         
         # Create dummy variables
-        df_encoded = pd.get_dummies(df, columns=self.categorical_cols, drop_first=True)
+        processed_df = pd.get_dummies(processed_df, columns=self.categorical_cols, drop_first=True)
         
-        # Store feature columns
-        self.feature_columns = [col for col in df_encoded.columns if col != 'Price']
+        if is_training:
+            self.feature_columns = [col for col in processed_df.columns if col != self.target]
+            return processed_df
+        else:
+            # Ensure all training columns exist in prediction data
+            for col in self.feature_columns:
+                if col not in processed_df.columns:
+                    processed_df[col] = 0
+            return processed_df[self.feature_columns]
+
+    def train(self, df):
+        # Preprocess data
+        processed_df = self.preprocess_data(df)
         
-        # Prepare features and target
-        X = df_encoded[self.feature_columns]
-        y = df_encoded['Price']
+        # Split features and target
+        X = processed_df[self.feature_columns]
+        y = processed_df[self.target]
         
         # Scale features
         X_scaled = self.scaler.fit_transform(X)
@@ -65,106 +62,144 @@ class CarPricePredictor:
         self.lr_model.fit(X_train, y_train)
         self.dt_model.fit(X_train, y_train)
         
-        # Calculate and display model performance
+        # Get predictions
         lr_pred = self.lr_model.predict(X_test)
         dt_pred = self.dt_model.predict(X_test)
         
-        st.write("\nModel Performance:")
-        st.write("Linear Regression R² Score:", round(self.lr_model.score(X_test, y_test), 3))
-        st.write("Decision Tree R² Score:", round(self.dt_model.score(X_test, y_test), 3))
+        return {
+            'lr_r2': r2_score(y_test, lr_pred),
+            'dt_r2': r2_score(y_test, dt_pred),
+            'lr_rmse': np.sqrt(mean_squared_error(y_test, lr_pred)),
+            'dt_rmse': np.sqrt(mean_squared_error(y_test, dt_pred))
+        }
 
-    def plot_eda(self, df):
-        # Create visualizations
-        st.write("\nExploratory Data Analysis Visualizations:")
-        
-        # Price distribution
-        fig, ax = plt.subplots(figsize=(10, 6))
-        sns.histplot(data=df, x='Price', kde=True, ax=ax)
-        plt.title('Price Distribution')
-        st.pyplot(fig)
-        
-        # Correlation heatmap
-        numerical_data = df[self.numerical_cols + ['Price']]
-        fig, ax = plt.subplots(figsize=(10, 8))
-        sns.heatmap(numerical_data.corr(), annot=True, cmap='coolwarm', ax=ax)
-        plt.title('Correlation Heatmap')
-        st.pyplot(fig)
-
-    def predict(self, input_data):
-        # Create DataFrame with user input
-        input_df = pd.DataFrame([input_data])
-        
-        # Create dummy variables
-        input_encoded = pd.get_dummies(input_df, columns=self.categorical_cols)
-        
-        # Align columns with training data
-        for col in self.feature_columns:
-            if col not in input_encoded.columns:
-                input_encoded[col] = 0
-        
-        input_encoded = input_encoded[self.feature_columns]
+    def predict(self, df):
+        # Preprocess prediction data
+        processed_df = self.preprocess_data(df, is_training=False)
         
         # Scale features
-        input_scaled = self.scaler.transform(input_encoded)
+        X_scaled = self.scaler.transform(processed_df)
         
         # Make predictions
-        lr_pred = self.lr_model.predict(input_scaled)[0]
-        dt_pred = self.dt_model.predict(input_scaled)[0]
+        lr_pred = self.lr_model.predict(X_scaled)
+        dt_pred = self.dt_model.predict(X_scaled)
         
         return lr_pred, dt_pred
+
+def plot_eda(df):
+    st.subheader("Exploratory Data Analysis")
+    
+    # Numerical columns analysis
+    numerical_cols = ['Year', 'Kilometers_Driven', 'Mileage', 'Engine', 'Power', 'Seats', 'Price']
+    
+    # Correlation heatmap
+    st.write("Correlation Heatmap")
+    fig, ax = plt.subplots(figsize=(10, 8))
+    numeric_df = df[numerical_cols].apply(pd.to_numeric, errors='coerce')
+    sns.heatmap(numeric_df.corr(), annot=True, cmap='coolwarm', fmt='.2f')
+    st.pyplot(fig)
+    plt.close()
+    
+    # Price distribution
+    st.write("Price Distribution")
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.histplot(data=df, x='Price', kde=True)
+    plt.title('Price Distribution')
+    st.pyplot(fig)
+    plt.close()
+    
+    # Categorical analysis
+    st.write("Average Price by Categories")
+    categorical_cols = ['Location', 'Fuel_Type', 'Transmission', 'Owner_Type']
+    
+    fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+    axes = axes.ravel()
+    
+    for idx, col in enumerate(categorical_cols):
+        sns.boxplot(data=df, x=col, y='Price', ax=axes[idx])
+        axes[idx].set_xticklabels(axes[idx].get_xticklabels(), rotation=45)
+        axes[idx].set_title(f'Price by {col}')
+    
+    plt.tight_layout()
+    st.pyplot(fig)
+    plt.close()
 
 def main():
     st.title("Car Price Prediction App")
     
-    # Initialize or get the model from session state
+    # Initialize model in session state
     if 'model' not in st.session_state:
         st.session_state.model = CarPricePredictor()
         st.session_state.trained = False
     
-    # File uploader for training data
-    data_file = st.file_uploader("Upload your car dataset (Excel file)", type=['xlsx'])
+    # File upload section
+    st.header("1. Model Training")
+    training_file = st.file_uploader("Upload Training Data (XLSX)", type=['xlsx'], key='train')
     
-    if data_file is not None and st.button("Train Model"):
-        st.write("Training model...")
-        st.session_state.model.train(data_file)
-        st.session_state.trained = True
-        st.success("Model trained successfully!")
+    if training_file is not None:
+        try:
+            training_data = pd.read_excel(training_file)
+            st.write("Training Data Preview:")
+            st.write(training_data.head())
+            
+            if st.button("Train Model"):
+                st.write("Training model...")
+                
+                # Perform EDA
+                plot_eda(training_data)
+                
+                # Train model
+                metrics = st.session_state.model.train(training_data)
+                
+                st.write("Model Performance Metrics:")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Linear Regression R² Score", f"{metrics['lr_r2']:.3f}")
+                    st.metric("Linear Regression RMSE", f"{metrics['lr_rmse']:.2f}")
+                with col2:
+                    st.metric("Decision Tree R² Score", f"{metrics['dt_r2']:.3f}")
+                    st.metric("Decision Tree RMSE", f"{metrics['dt_rmse']:.2f}")
+                
+                st.session_state.trained = True
+                st.success("Model trained successfully!")
+        
+        except Exception as e:
+            st.error(f"Error: {str(e)}")
     
+    # Prediction section
     if st.session_state.trained:
-        st.header("Enter Car Details for Prediction")
+        st.header("2. Price Prediction")
+        prediction_file = st.file_uploader("Upload Prediction Data (XLSX)", type=['xlsx'], key='predict')
         
-        # Create two columns for input
-        col1, col2 = st.columns(2)
-        
-        # Dictionary to store user inputs
-        user_input = {}
-        
-        # Numerical inputs
-        with col1:
-            st.subheader("Numerical Features")
-            for col in st.session_state.model.numerical_cols:
-                user_input[col] = st.number_input(f"Enter {col}", value=0.0)
-        
-        # Categorical inputs
-        with col2:
-            st.subheader("Categorical Features")
-            for col in st.session_state.model.categorical_cols:
-                # You'll need to replace these options with actual categories from your data
-                options = ['option1', 'option2', 'option3']  # Replace with your actual options
-                user_input[col] = st.selectbox(f"Select {col}", options)
-        
-        if st.button("Predict Price"):
-            lr_pred, dt_pred = st.session_state.model.predict(user_input)
+        if prediction_file is not None:
+            try:
+                prediction_data = pd.read_excel(prediction_file)
+                st.write("Prediction Data Preview:")
+                st.write(prediction_data.head())
+                
+                if st.button("Generate Predictions"):
+                    lr_pred, dt_pred = st.session_state.model.predict(prediction_data)
+                    
+                    # Add predictions to the dataframe
+                    results = prediction_data.copy()
+                    results['Linear_Regression_Prediction'] = lr_pred
+                    results['Decision_Tree_Prediction'] = dt_pred
+                    
+                    st.write("Prediction Results:")
+                    st.write(results)
+                    
+                    # Download button for predictions
+                    st.download_button(
+                        label="Download Predictions",
+                        data=results.to_csv(index=False).encode('utf-8'),
+                        file_name="car_price_predictions.csv",
+                        mime="text/csv"
+                    )
             
-            # Display predictions
-            st.header("Predicted Prices")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.metric("Linear Regression Prediction", f"${lr_pred:,.2f}")
-            
-            with col2:
-                st.metric("Decision Tree Prediction", f"${dt_pred:,.2f}")
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+    else:
+        st.warning("Please train the model first before making predictions.")
 
 if __name__ == "__main__":
     main()
