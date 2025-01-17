@@ -1,9 +1,5 @@
 pandas
 numpy
-matplotlib.pyplot
+matplotlib
 seaborn
-sklearn.model_selection
-sklearn.preprocessing
-sklearn.linear_model
-sklearn.tree
-sklearn.metrics
+sklearn
