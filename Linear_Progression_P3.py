@@ -169,7 +169,8 @@ def main():
                     st.session_state.trained = True
                     st.success("Model trained successfully!")
                 else:
-                     st.error(f" The data seems different , as it evident from the header of the XLSX file . Please upload correct file ")
+                     
+                     st.warning(f" The data seems different , as it evident from the header of the XLSX file . Please upload correct file ")
             
         except Exception as e:            
             st.error(f"Error: {str(e)}")
@@ -207,7 +208,8 @@ def main():
                         st.download_button(label="Download Predictions", data=results.to_csv(index=False).encode('utf-8'), file_name="car_price_predictions.csv", mime="text/csv"
                         )
                     else:
-                        st.error(f" The data seems different , as it evident from the header of the XLSX file . Please upload correct file ")
+                        
+                        st.warning(f" The data seems different , as it evident from the header of the XLSX file . Please upload correct file ")
             
             except Exception as e:
                 st.error(f"Error: {str(e)}")
