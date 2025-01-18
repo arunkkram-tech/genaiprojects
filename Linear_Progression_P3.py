@@ -8,7 +8,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.metrics import r2_score, mean_squared_error
-import traceback
 
 class CarPricePredictor:
     def __init__(self):
@@ -165,9 +164,9 @@ def main():
                 st.success("Model trained successfully!")
         
         except Exception as e:            
-            #st.error(f"Error: {str(e)}")
-            error_trace = traceback.format_exc()
-            st.error(f"Error: {error_trace}")
+            st.error(f"Error: {str(e)}")
+            #error_trace = traceback.format_exc()
+            #st.error(f"Error: {error_trace}")
     
     # Prediction section
     if st.session_state.trained:
@@ -200,9 +199,9 @@ def main():
                     )
             
             except Exception as e:
-                #st.error(f"Error: {str(e)}")
-                error_trace = traceback.format_exc()
-                st.error(f"Error: {error_trace}")
+                st.error(f"Error: {str(e)}")
+                #error_trace = traceback.format_exc()
+                #st.error(f"Error: {error_trace}")
     else:
         st.warning("Please train the model first before making predictions.")
 
