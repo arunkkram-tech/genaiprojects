@@ -135,34 +135,42 @@ def main():
     # File upload section
     st.header("1. Model Training")
     training_file = st.file_uploader("Upload Training Data (XLSX)", type=['xlsx'], key='train')
+
+    
     
     if training_file is not None:
         try:
+            #To verify the headers of XLSXfile
+            REQUIRED_COLUMNS=['Location','Year','Kilometers_Driven','Fuel_Type','Transmission','Owner_Type','Mileage','Engine','Power','Seats','Price']
             training_data = pd.read_excel(training_file)
-            st.write("Training Data Preview:")
-            st.write(training_data.head())
+            training_data_headers = training_data.columns.tolist()
+            if(training_data_headers== ['Location','Year','Kilometers_Driven','Fuel_Type','Transmission','Owner_Type','Mileage','Engine','Power','Seats','Price']):
+                st.write("Training Data Preview:")
+                st.write(training_data.head())
+                
+                if st.button("Train Model"):
+                    st.write("Training model...")
+                    
+                    # Perform EDA
+                    plot_eda(training_data)
+                    
+                    # Train model
+                    metrics = st.session_state.model.train(training_data)
+                    
+                    st.write("Model Performance Metrics:")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("Linear Regression R² Score", f"{metrics['lr_r2']:.3f}")
+                        st.metric("Linear Regression RMSE", f"{metrics['lr_rmse']:.2f}")
+                    with col2:
+                        st.metric("Decision Tree R² Score", f"{metrics['dt_r2']:.3f}")
+                        st.metric("Decision Tree RMSE", f"{metrics['dt_rmse']:.2f}")
+                    
+                    st.session_state.trained = True
+                    st.success("Model trained successfully!")
+                else:
+                     st.error(f" The data seems different , as it evident from the header of the XLSX file . Please upload correct file ")
             
-            if st.button("Train Model"):
-                st.write("Training model...")
-                
-                # Perform EDA
-                plot_eda(training_data)
-                
-                # Train model
-                metrics = st.session_state.model.train(training_data)
-                
-                st.write("Model Performance Metrics:")
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("Linear Regression R² Score", f"{metrics['lr_r2']:.3f}")
-                    st.metric("Linear Regression RMSE", f"{metrics['lr_rmse']:.2f}")
-                with col2:
-                    st.metric("Decision Tree R² Score", f"{metrics['dt_r2']:.3f}")
-                    st.metric("Decision Tree RMSE", f"{metrics['dt_rmse']:.2f}")
-                
-                st.session_state.trained = True
-                st.success("Model trained successfully!")
-        
         except Exception as e:            
             st.error(f"Error: {str(e)}")
             #error_trace = traceback.format_exc()
@@ -175,28 +183,31 @@ def main():
         
         if prediction_file is not None:
             try:
+                 #To verify the headers of XLSXfile
+                REQUIRED_COLUMNS=['Location','Year','Kilometers_Driven','Fuel_Type','Transmission','Owner_Type','Mileage','Engine','Power','Seats','Price']
                 prediction_data = pd.read_excel(prediction_file)
-                st.write("Prediction Data Preview:")
-                st.write(prediction_data.head())
-                
-                if st.button("Generate Predictions"):
-                    lr_pred, dt_pred = st.session_state.model.predict(prediction_data)
+                prediction_data_headers = prediction_data.columns.tolist()
+
+                if(prediction_data_headers== ['Location','Year','Kilometers_Driven','Fuel_Type','Transmission','Owner_Type','Mileage','Engine','Power','Seats','Price']):
+                    st.write("Prediction Data Preview:")
+                    st.write(prediction_data.head())
                     
-                    # Add predictions to the dataframe
-                    results = prediction_data.copy()
-                    results['Linear_Regression_Prediction'] = lr_pred
-                    results['Decision_Tree_Prediction'] = dt_pred
-                    
-                    st.write("Prediction Results:")
-                    st.write(results)
-                    
-                    # Download button for predictions
-                    st.download_button(
-                        label="Download Predictions",
-                        data=results.to_csv(index=False).encode('utf-8'),
-                        file_name="car_price_predictions.csv",
-                        mime="text/csv"
-                    )
+                    if st.button("Generate Predictions"):
+                        lr_pred, dt_pred = st.session_state.model.predict(prediction_data)
+                        
+                        # Add predictions to the dataframe
+                        results = prediction_data.copy()
+                        results['Linear_Regression_Prediction'] = lr_pred
+                        results['Decision_Tree_Prediction'] = dt_pred
+                        
+                        st.write("Prediction Results:")
+                        st.write(results)
+                        
+                        # Download button for predictions
+                        st.download_button(label="Download Predictions", data=results.to_csv(index=False).encode('utf-8'), file_name="car_price_predictions.csv", mime="text/csv"
+                        )
+                    else:
+                        st.error(f" The data seems different , as it evident from the header of the XLSX file . Please upload correct file ")
             
             except Exception as e:
                 st.error(f"Error: {str(e)}")
