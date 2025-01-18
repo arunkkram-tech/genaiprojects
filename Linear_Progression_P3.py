@@ -163,8 +163,10 @@ def main():
                 st.session_state.trained = True
                 st.success("Model trained successfully!")
         
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
+        except Exception as e:            
+            #st.error(f"Error: {str(e)}")
+            error_trace = traceback.format_exc()
+            st.error(f"Error: {error_trace}")
     
     # Prediction section
     if st.session_state.trained:
@@ -197,7 +199,9 @@ def main():
                     )
             
             except Exception as e:
-                st.error(f"Error: {str(e)}")
+                #st.error(f"Error: {str(e)}")
+                error_trace = traceback.format_exc()
+                st.error(f"Error: {error_trace}")
     else:
         st.warning("Please train the model first before making predictions.")
 
