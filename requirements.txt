@@ -4,5 +4,4 @@ matplotlib
 seaborn
 scikit-learn
 streamlit
-openpyxl
 traceback
